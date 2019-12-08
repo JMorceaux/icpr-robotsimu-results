@@ -1,0 +1,47 @@
+<launch>
+
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name"
+        value="$(find icpr_robotsimu_results)/worlds/myworld.world"/>
+        <arg name="gui" value="true"/>
+    </include>
+
+    <include file="$(find icpr_robotsimu)/launch/control.launch"/>
+
+    <node name="lidar_rotation" type="lidar_rotation.py" pkg="icpr_robotsimu_results" />
+
+    
+    <node name="camera_lidar" type="camera_lidar.py" pkg="icpr_robotsimu">
+        <remap from="camera/image_raw" to="/monrobot/camera1/image_raw"/>
+        <remap from="camera/camera_info" to="/monrobot/camera1/camera_info"/>
+        <remap from="scan" to="/monrobot/laser/scan" />
+    </node>
+
+    <node name="cloud" type="periodic_snapshotter.py" pkg="icpr_robotsimu_results" />
+
+    <!-- Start le noeud pour calculer le nuage de point colore-->
+    <node name="point_cloud_assembler" type="point_cloud_assembler" pkg="laser_assembler">
+        <param name="fixed_frame" type="string" value="camera_link" />
+    </node>
+
+    <rosparam file="$(find icpr_robotsimu_results)/model/my_diff_drive.yaml" command="load" />
+
+
+    <param name="robot_description" command="xacro --inorder '$(find icpr_robotsimu_results)/model/model.urdf.xacro'" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher"/>
+
+    <node name="spawn_YOUR_ROBOT_model" pkg="gazebo_ros" type="spawn_model"
+          args="$(optenv ROBOT_INITIAL_POSE) -x 10 -y 1 -z 0 -unpause -urdf -param robot_description -model YOUR_ROBOT"/>
+
+    <node name="SARA_controller_manager" pkg="controller_manager" type="spawner"
+          respawn="false" output="screen" args="mobile_base_controller" />
+
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find icpr_robotsimu_results)/rviz/config.rviz" />
+    
+    <group ns="mobile_base_controller">
+        <include file="$(find multikey_teleop)/launch/teleop.launch"/>
+    </group>
+
+</launch>
+
+
